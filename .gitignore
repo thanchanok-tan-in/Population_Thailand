@@ -1,0 +1,72 @@
+# ==============================================================================
+# .gitignore for Thailand Population Map Dashboard (PHP / Leaflet / Datasets)
+# ==============================================================================
+
+# Operating System Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+
+# IDE & Code Editor Configurations
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+*.swo
+*~
+
+# PHP & Dependency Management
+vendor/
+composer.phar
+.env
+.env.local
+.env.*.local
+*.log
+error_log
+php_errors.log
+.phpunit.result.cache
+
+# Web Server & Cache
+.htaccess.local
+*.cache
+*.tmp
+*.bak
+
+# Database Dumps & Large Exports
+*.sql
+*.sqlite
+*.db
+*.dump
+
+# Compressed Archives (Prevent uploading oversized zips/tars)
+*.zip
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+
+# Large/Temporary Data & GeoJSON Backups
+# (Keep essential project GeoJSONs tracked via whitelisting below)
+*.geojson.bak
+*.json.bak
+data/raw/
+data/temp/
+
+# Whitelist essential project datasets and assets
+!population.json
+!7days.json
+!thailandwithdensity.json
+!province_77.json
+!data/
+!data/*.csv
+!images/
