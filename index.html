@@ -1,0 +1,1089 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Thailand Population Map Dashboard</title>
+        <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+        <style>
+            /* Base reset & full viewport layout */
+            *, *::before, *::after {
+                box-sizing: border-box;
+            }
+
+            html, body {
+                height: 100%;
+                width: 100%;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                font-family: 'Segoe UI', Arial, Tahoma, sans-serif;
+                background-color: #f4f6f8;
+            }
+
+            /* Task 2: Responsive Dashboard & Map Container */
+            #dashboard-wrapper {
+                position: relative;
+                width: 100%;
+                height: 100vh;
+                height: 100dvh; /* Mobile dynamic viewport height */
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            #map-container {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                flex: 1;
+                overflow: hidden;
+            }
+
+            #mapid {
+                width: 100%;
+                height: 100%;
+                min-height: 100%;
+                margin: 0;
+                padding: 0;
+                z-index: 1;
+            }
+
+            /* Responsive Map Title */
+            #map-title {
+                position: absolute;
+                top: 18px;
+                left: 24px;
+                z-index: 1000;
+                pointer-events: none;
+                line-height: 1.15;
+                font-family: 'Segoe UI', Tahoma, sans-serif;
+            }
+
+            #map-title .title-highlight {
+                color: #CE6857;
+                font-size: clamp(20px, 3.5vw, 36px);
+                font-weight: 800;
+                text-shadow: 2px 2px 6px rgba(255, 255, 255, 0.85);
+            }
+
+            #map-title .title-from {
+                font-size: clamp(14px, 2.2vw, 24px);
+                color: #523E27;
+                font-weight: 600;
+                margin-left: 6px;
+                text-shadow: 1px 1px 4px rgba(255, 255, 255, 0.8);
+            }
+
+            #map-title .title-sub {
+                color: #523E27;
+                font-size: clamp(15px, 2.6vw, 28px);
+                font-weight: 700;
+                text-shadow: 2px 2px 6px rgba(255, 255, 255, 0.85);
+                white-space: nowrap;
+            }
+
+            #map-title .title-year {
+                font-size: clamp(18px, 3.2vw, 35px);
+                color: #A87008;
+            }
+
+            /* Info Box & Legend Controls */
+            .info { 
+                padding: 8px 12px; 
+                font: 13px/16px 'Segoe UI', Arial, Helvetica, sans-serif; 
+                background: rgba(255, 255, 255, 0.92); 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.18); 
+                border-radius: 8px; 
+                backdrop-filter: blur(4px);
+            } 
+
+            .info h4 { 
+                margin: 0 0 5px; 
+                color: #444; 
+                font-size: 14px;
+                font-weight: 700;
+            }
+
+            .legend { 
+                text-align: left; 
+                line-height: 20px; 
+                color: #444; 
+                max-height: 48vh;
+                overflow-y: auto;
+            } 
+
+            .legend i { 
+                width: 18px; 
+                height: 18px; 
+                float: left; 
+                margin-right: 8px; 
+                opacity: 0.85; 
+                border-radius: 3px;
+            }
+
+            /* Task 2: Responsive Map Popup & Viewport Boundary Constraints */
+            .leaflet-popup {
+                margin-bottom: 24px;
+            }
+
+            .leaflet-popup-content-wrapper {
+                border-radius: 12px;
+                background: #ffffff;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+                padding: 10px 14px;
+                max-width: 85vw !important;  /* Popup never exceeds 85% of viewport width */
+                max-height: 70vh !important; /* Popup never exceeds 70% of viewport height */
+                box-sizing: border-box;
+            }
+
+            .leaflet-popup-content {
+                margin: 6px 4px !important;
+                line-height: 1.4;
+                max-width: 100% !important;
+                max-height: calc(70vh - 40px) !important;
+                overflow-y: auto !important;  /* Smooth scrolling if popup content is tall */
+                overflow-x: hidden;
+                word-break: break-word;       /* Prevent overflow from long names/text */
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .leaflet-popup-content::-webkit-scrollbar {
+                width: 5px;
+            }
+            .leaflet-popup-content::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 4px;
+            }
+
+            .popup-card {
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13.5px;
+                color: #333;
+                min-width: 220px;
+            }
+
+            .popup-card h4 {
+                margin: 0 0 8px;
+                padding-bottom: 6px;
+                font-size: 16px;
+                font-weight: bold;
+                border-bottom: 1px solid #e0e0e0;
+                color: #2c3e50;
+            }
+
+            .popup-card table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+
+            .popup-card table td {
+                padding: 5px 6px;
+                vertical-align: middle;
+            }
+
+            .popup-card table td:first-child {
+                font-weight: 600;
+                color: #555;
+                white-space: nowrap;
+            }
+
+            /* KPI Cards Overlay Panel */
+            #kpi-card {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                position: absolute;
+                top: 110px;
+                left: 20px;
+                z-index: 1000;
+                max-height: calc(100vh - 140px);
+                max-height: calc(100dvh - 140px);
+                overflow-y: auto;
+                padding-right: 4px;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+            }
+
+            #kpi-card::-webkit-scrollbar {
+                width: 4px;
+            }
+            #kpi-card::-webkit-scrollbar-thumb {
+                background: rgba(0,0,0,0.2);
+                border-radius: 4px;
+            }
+
+            .side-card {
+                background: rgba(255, 255, 255, 0.92);
+                border-radius: 12px;
+                box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+                backdrop-filter: blur(6px);
+                padding: 12px 14px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                line-height: 1.35;
+                color: #333;
+                width: 260px;
+                max-width: 85vw;
+            }
+
+            .side-card .card-header {
+                font-weight: 700;
+                font-size: 15px;
+                margin-bottom: 8px;
+                color: #2e2d2a;
+            }
+
+            .side-card .card-body p {
+                margin: 6px 0;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+            }
+
+            .side-card .card-body p strong {
+                display: inline-block;
+                min-width: 50px;
+            }
+
+            #region-select {
+                width: 100%;
+                padding: 6px 8px;
+                margin-top: 5px;
+                margin-bottom: 6px;
+                border-radius: 6px;
+                border: 1px solid #ccc;
+                font-size: 13.5px;
+                background-color: #fff;
+            }
+
+            .side-card label {
+                font-weight: 600;
+                display: block;
+                font-size: 13px;
+                margin-bottom: 3px;
+            }
+
+            /* Top 5 Table */
+            #province-table {
+                border-collapse: collapse;
+                width: 100%;
+                font-size: 13px;
+            }
+
+            #province-table th, #province-table td {
+                border: 1px solid #e2e8f0;
+                padding: 5px 6px;
+            }
+
+            #province-table th {
+                background: rgba(240, 243, 246, 0.95);
+                font-weight: 700;
+                text-align: left;
+            }
+
+            /* KPI Toggle Button for Mobile */
+            .kpi-toggle-btn {
+                display: none;
+                position: absolute;
+                top: 18px;
+                right: 18px;
+                z-index: 1002;
+                background: #800026;
+                color: #fff;
+                border: none;
+                border-radius: 20px;
+                padding: 7px 14px;
+                font-size: 13px;
+                font-weight: 600;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                cursor: pointer;
+                align-items: center;
+                gap: 6px;
+            }
+
+            .kpi-toggle-btn:active {
+                transform: scale(0.97);
+            }
+
+            /* Search Box */
+            #search-container {
+                position: absolute;
+                bottom: 25px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 1000;
+                width: 90%;
+                max-width: 300px;
+            }
+
+            #search-error {
+                color: #d90429;
+                font-size: 12px;
+                font-weight: 600;
+                text-align: center;
+                margin-bottom: 4px;
+                text-shadow: 0 0 4px #ffffff;
+            }
+
+            .search-bar {
+                position: relative;
+                display: flex;
+                align-items: center;
+                background: #814256;
+                border-radius: 10px;
+                padding: 4px 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            }
+
+            .search-icon {
+                width: 18px;
+                height: 18px;
+                fill: #ffffff;
+                margin-left: 4px;
+                flex-shrink: 0;
+            }
+
+            #province-search {
+                flex: 1;
+                padding: 7px 10px;
+                margin-left: 6px;
+                border: none;
+                border-radius: 6px;
+                outline: none;
+                font-size: 13.5px;
+            }
+
+            #autocomplete-list {
+                position: absolute;
+                bottom: 42px;
+                left: 0;
+                right: 0;
+                background: #ffffff;
+                border: 1px solid #ddd;
+                max-height: 160px;
+                overflow-y: auto;
+                display: none;
+                border-radius: 8px;
+                box-shadow: 0 -4px 14px rgba(0,0,0,0.18);
+                z-index: 1001;
+            }
+
+            #autocomplete-list div {
+                padding: 7px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #f0f0f0;
+                font-size: 13.5px;
+            }
+
+            #autocomplete-list div:hover {
+                background: #f4f6f8;
+            }
+
+            /* Mobile & Tablet Responsive Adjustments */
+            @media (max-width: 768px) {
+                .kpi-toggle-btn {
+                    display: inline-flex;
+                }
+
+                #kpi-card {
+                    top: 65px;
+                    left: 12px;
+                    right: 12px;
+                    width: auto;
+                    max-width: calc(100vw - 24px);
+                    max-height: 55vh;
+                    display: none; /* Collapsed by default on mobile, toggled via button */
+                }
+
+                #kpi-card.active {
+                    display: flex;
+                }
+
+                .side-card {
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                #search-container {
+                    bottom: 20px;
+                    max-width: 85vw;
+                }
+
+                .legend {
+                    max-height: 35vh;
+                    font-size: 11px;
+                }
+
+                .leaflet-control-attribution {
+                    font-size: 9px;
+                }
+            }
+        </style>
+    </head>
+
+    <body>
+        <div id="dashboard-wrapper">
+            <!-- Map Container -->
+            <div id="map-container">
+                
+                <!-- Map Title -->
+                <div id="map-title">
+                    <span class="title-highlight">Population</span>
+                    <span class="title-from">from</span><br>
+                    <span class="title-sub">
+                        Registration in <span class="title-year">2023</span>
+                    </span>
+                </div>
+
+                <!-- KPI Mobile Toggle Button -->
+                <button id="kpi-toggle-btn" class="kpi-toggle-btn" type="button" aria-label="Toggle Statistics Panel">
+                    <span>📊</span>
+                    <span class="kpi-toggle-text">Statistics</span>
+                </button>
+
+                <!-- KPI Cards Panel -->
+                <div id="kpi-card">
+                    <!-- Total Thailand -->
+                    <div class="side-card" style="border: 3px solid #800026;">
+                        <div class="card-header">Thailand Population</div>
+                        <div class="card-body">
+                            <p class="total">
+                                <img src="./images/3_peple.png" alt="Total" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                <span id="total-pop">-</span>
+                            </p>
+                            <p class="male">
+                                <img src="./images/1_1_man.png" alt="Male" style="width:25px; vertical-align:middle; margin-right:5px;">
+                                <span id="male-pop">-</span>
+                            </p>
+                            <p class="female">
+                                <img src="./images/2_1_woman.png" alt="Female" style="width:25px; vertical-align:middle; margin-right:5px;">
+                                <span id="female-pop">-</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Population by Region -->
+                    <div class="side-card" style="border: 3px solid #E31A1C;">
+                        <div class="card-body">
+                            <label for="region-select">Select Region:</label>
+                            <select id="region-select">
+                                <option value="กรุงเทพมหานครและปริมณฑล" selected>Bangkok and Vicinities</option>
+                                <option value="ภาคกลาง">Central Region</option>
+                                <option value="ภาคตะวันออก">Eastern Region</option>
+                                <option value="ภาคตะวันตก">Western Region</option>
+                                <option value="ภาคเหนือ">Northern Region</option>
+                                <option value="ภาคตะวันออกเฉียงเหนือ">Northeastern Region</option>
+                                <option value="ภาคใต้">Southern Region</option>
+                            </select>
+                            <p class="total">
+                                <img src="images/3_peple.png" alt="Total" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                <span id="region-total">-</span>
+                            </p>
+                            <p class="male">
+                                <img src="images/1_1_man.png" alt="Male" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                <span id="region-male">-</span>
+                            </p>
+                            <p class="female">
+                                <img src="images/2_1_woman.png" alt="Female" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                <span id="region-female">-</span>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Top 5 Provinces -->
+                    <div class="side-card" style="border: 3px solid #FD8D3C;">
+                        <div class="card-header">Top 5 Provinces</div>
+                        <div class="card-body">
+                            <table id="province-table">
+                                <thead>
+                                    <tr>
+                                        <th>Province</th>
+                                        <th>Total</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <!-- Rows populated by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Search Box -->
+                <div id="search-container">
+                    <div id="search-error"></div>
+                    <div class="search-bar">
+                        <svg viewBox="0 0 20 20" aria-hidden="true" class="search-icon">
+                            <path d="M16.72 17.78a.75.75 0 1 0 1.06-1.06l-1.06 1.06ZM9 14.5A5.5 5.5 0 0 1 3.5 9H2a7 7 0 0 0 7 7v-1.5ZM3.5 9A5.5 5.5 0 0 1 9 3.5V2a7 7 0 0 0-7 7h1.5ZM9 3.5A5.5 5.5 0 0 1 14.5 9H16a7 7 0 0 0-7-7v1.5Zm3.89 10.45 3.83 3.83 1.06-1.06-3.83-3.83-1.06 1.06ZM14.5 9a5.48 5.48 0 0 1-1.61 3.89l1.06 1.06A6.98 6.98 0 0 0 16 9h-1.5Zm-1.61 3.89A5.48 5.48 0 0 1 9 14.5V16a6.98 6.98 0 0 0 4.95-2.05l-1.06-1.06Z"></path>
+                        </svg>
+                        <input type="text" id="province-search" placeholder="ค้นหาจังหวัด (Search province)..." autocomplete="off">
+                    </div>
+                    <div id="autocomplete-list"></div>
+                </div>
+
+                <!-- Leaflet Map Container -->
+                <div id="mapid"></div>
+
+            </div>
+        </div>
+    </body>
+
+    <!-- Resources -->
+        <script src="https://code.jquery.com/jquery-3.7.1.min.js" integrity="sha256-/JqT3SQfawRcv/BIHPThkBvs0OEvtFFmqPF/lYI/Cxo=" crossorigin="anonymous"></script>
+        <script src="https://cdn.datatables.net/2.3.4/js/dataTables.min.js"></script>
+        <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+        <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+
+        <script src="https://cdn.amcharts.com/lib/4/core.js"></script>
+        <script src="https://cdn.amcharts.com/lib/4/charts.js"></script>
+        <script src="https://cdn.amcharts.com/lib/4/plugins/wordCloud.js"></script>
+        <script src="https://cdn.amcharts.com/lib/4/themes/animated.js"></script>
+
+
+    
+    <script>
+        $(document).ready(function() {
+
+            // โหลด population.json
+            $.getJSON("./population.json", function(pop_data) {
+
+                // โหลด GeoJSON
+                $.getJSON("./7days.json", function(geojson_data) {
+
+                    // รวม population เข้ากับ GeoJSON
+                    geojson_data.features.forEach(function(feature) {
+                        var popItem = pop_data.find(p => p.Province.toLowerCase() === feature.properties.name.toLowerCase());
+                        feature.properties.p = popItem ? popItem["ประชากรรวม (Total Population)"] : 0;
+                        feature.properties.popItem = popItem; // เก็บ object ไว้ใช้ใน popup
+                    });
+
+                    // สร้าง map (Responsive configuration with smooth zoom)
+                    var map = L.map('mapid', {
+                        zoomSnap: 0.5,
+                        zoomDelta: 0.5
+                    }).setView([13, 101.5], 5.5);
+
+                    // Task 2: Responsive Map Container Resize Handler (map.invalidateSize)
+                    function handleMapResize() {
+                        if (map) {
+                            map.invalidateSize();
+                        }
+                    }
+
+                    // Window resize and device orientation change listeners
+                    window.addEventListener('resize', handleMapResize);
+                    window.addEventListener('orientationchange', handleMapResize);
+
+                    // ResizeObserver to detect fluid container size adjustments
+                    if (window.ResizeObserver) {
+                        const mapEl = document.getElementById('mapid');
+                        if (mapEl) {
+                            const resizeObserver = new ResizeObserver(() => {
+                                handleMapResize();
+                            });
+                            resizeObserver.observe(mapEl);
+                        }
+                    }
+
+                    // Initial layout recalculation after paint
+                    setTimeout(handleMapResize, 250);
+
+                    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                        attribution: '&copy; <a href="http://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    }).addTo(map);
+
+                    // info control
+                    var info = L.control();
+                    info.onAdd = function (map) {
+                        this._div = L.DomUtil.create('div', 'info');
+                        this.update();
+                        return this._div;
+                    };
+                    info.update = function (props) {
+                        this._div.innerHTML = '<h4>Thai Population Density</h4>' +
+                            (props ? '<b>' + props.name + '</b><br />' + props.p.toLocaleString() + ' people' : 'Hover over a state');
+                    };
+                    info.addTo(map);
+
+
+
+                        
+                    
+
+                    
+                    // === Province Search Feature ===
+                    const searchInput = document.getElementById("province-search");
+                    const autocompleteList = document.getElementById("autocomplete-list");
+                    const searchError = document.getElementById("search-error");
+
+                    // สร้าง Array ของจังหวัดจาก population.json
+                    let provinceList = pop_data.map(d => ({
+                        thai: d.จังหวัด,
+                        eng: d.Province,
+                        data: d
+                    }));
+
+                    searchInput.addEventListener("input", function() {
+                        const query = this.value.trim().toLowerCase();
+                        autocompleteList.innerHTML = "";
+                        searchError.innerText = "";
+
+                        if (!query) {
+                            autocompleteList.style.display = "none";
+                            return;
+                        }
+
+                        // filter เฉพาะชื่อที่ขึ้นต้นตรงกับ query (prefix match)
+                        let matches = provinceList.filter(p =>
+                            p.thai.toLowerCase().startsWith(query) || p.eng.toLowerCase().startsWith(query)
+                        );
+
+                        if (matches.length === 0) {
+                            autocompleteList.style.display = "none";
+                            searchError.innerText = "ไม่พบจังหวัดที่ตรงกับคำค้น";
+                            return;
+                        }
+
+                        // เรียงลำดับตามชื่อไทย
+                        matches.sort((a, b) => a.thai.localeCompare(b.thai, 'th'));
+
+                        // แสดงเฉพาะ 5 อันดับแรก
+                        matches.slice(0, 5).forEach(p => {
+                            const div = document.createElement("div");
+                            div.style.padding = "4px";
+                            div.style.cursor = "pointer";
+                            div.innerText = `${p.thai} (${p.eng})`;
+
+                            div.addEventListener("click", function() {
+                                autocompleteList.innerHTML = "";
+                                autocompleteList.style.display = "none";
+                                searchInput.value = `${p.thai} (${p.eng})`;
+
+                                // ค้นหา feature ใน GeoJSON
+                                let feature = geojson_data.features.find(f => 
+                                    f.properties.name.toLowerCase() === p.eng.toLowerCase()
+                                );
+
+                                if (feature) {
+                                    let layer = geojson.getLayers().find(l => l.feature.properties.name === feature.properties.name);
+                                    if (layer) {
+                                        var paddingLeft = (window.innerWidth >= 768) ? 280 : 30;
+                                        map.fitBounds(layer.getBounds(), {
+                                            paddingTopLeft: [paddingLeft, 40],
+                                            paddingBottomRight: [30, 30],
+                                            maxZoom: 9
+                                        });
+                                        layer.openPopup();
+                                    }
+                                } else {
+                                    searchError.innerText = "ไม่พบพิกัดของจังหวัดนี้";
+                                }
+                            });
+
+                            autocompleteList.appendChild(div);
+                        });
+
+                        autocompleteList.style.display = "block";
+                    });
+
+                    // ปิด autocomplete เมื่อคลิกนอก
+                    document.addEventListener("click", function(e){
+                        if(!document.getElementById('search-container').contains(e.target)){
+                            autocompleteList.innerHTML = "";
+                            autocompleteList.style.display = "none";
+                        }
+                    });
+
+
+
+
+
+
+
+
+                    // ✅ ฟังก์ชันรวมประชากรทั้งประเทศ
+                    function calculateNationalPopulation(features) {
+                        let total = 0;
+                        let male = 0;
+                        let female = 0;
+
+                        features.forEach(f => {
+                            let p = f.properties.popItem;
+                            if (p) {
+                                total  += p["ประชากรรวม (Total Population)"] || 0;
+                                male   += p["ประชากรชาย (Male population)"] || 0;
+                                female += p["ประชากรหญิง (Female population)"] || 0;
+                            }
+                        });
+
+                        return { total, male, female };
+                    }
+
+                    
+                    // search region
+                    let regionData = [];
+
+                    // โหลด population.json
+                    $.getJSON("./population.json", function(pop_data){
+                        regionData = pop_data;
+
+                        // แสดงค่าเริ่มต้น
+                        updateRegion("กรุงเทพมหานครและปริมณฑล");
+                    });
+
+                    // ฟังก์ชันอัปเดต KPI ตามภูมิภาค
+                    function updateRegion(region){
+                        // filter หา object ของภาคนั้นโดยตรง
+                        let data = regionData.find(p => p.ภาค === region);
+
+                        document.getElementById("region-total").innerText  = data ? data["ประชากรรวม (Total Population)"].toLocaleString() : "-";
+                        document.getElementById("region-male").innerText   = data ? data["ประชากรชาย (Male population)"].toLocaleString() : "-";
+                        document.getElementById("region-female").innerText = data ? data["ประชากรหญิง (Female population)"].toLocaleString() : "-";
+                    }
+
+                    // เปลี่ยนเมื่อเลือก dropdown
+                    $('#region-select').on('change', function(){
+                        updateRegion($(this).val());
+                    });
+
+
+
+
+                    // ฟังก์ชันหา top N จังหวัด
+                    function getTopProvinces(features, topN = 5) {
+                        return features
+                            .map(f => {
+                                let p = f.properties.popItem;
+                                return {
+                                    name: f.properties.name,
+                                    total: p ? p["ประชากรรวม (Total Population)"] : 0
+                                };
+                            })
+                            .sort((a,b) => b.total - a.total)
+                            .slice(0, topN);
+                    }
+
+                    // ฟังก์ชันเว้นวรรคชื่อจังหวัดเมื่อเจอตัวใหญ่
+                    function formatProvinceName(name) {
+                        if (!name) return "";
+                        // ใส่ช่องว่างหน้าตัวอักษรใหญ่ (ยกเว้นตัวแรก)
+                        return name.replace(/([A-Zก-ฮ])/g, ' $1').trim();
+                    }
+
+                    // แสดงลงตาราง
+                    function renderTopProvincesTable(topProvs) {
+                        const tbody = document.querySelector("#province-table tbody");
+                        tbody.innerHTML = ""; // ล้างก่อน
+
+                        topProvs.forEach((p, index) => {
+                            const tr = document.createElement("tr");
+                            const provinceName = formatProvinceName(p.name); // ใช้ฟังก์ชันเว้นวรรค
+
+                            if(index === 0){
+                                // อันดับ 1 เน้นสีแดง ตัวหนา
+                                tr.innerHTML = `<td style="color: #EB4343; font-weight:bold;">${provinceName}</td>
+                                                <td style="color: #EB4343; font-weight:bold;">${p.total.toLocaleString()}</td>`;
+                            } else {
+                                tr.innerHTML = `<td>${provinceName}</td><td>${p.total.toLocaleString()}</td>`;
+                            }
+                            tbody.appendChild(tr);
+                        });
+                    }
+
+                    // เรียกฟังก์ชัน
+                    const top5 = getTopProvinces(geojson_data.features, 5);
+                    renderTopProvincesTable(top5);
+
+
+
+
+
+
+
+
+                    
+
+
+
+
+
+
+                    // ✅ เรียกใช้หลังจากโหลด geojson_data เสร็จ
+                    let nationalData = calculateNationalPopulation(geojson_data.features);
+
+                    // ✅ อัปเดตลง HTML
+                    document.getElementById("total-pop").innerText  = nationalData.total.toLocaleString();
+                    document.getElementById("male-pop").innerText   = nationalData.male.toLocaleString();
+                    document.getElementById("female-pop").innerText = nationalData.female.toLocaleString();
+                   
+
+
+                    //ช่วงต่างกัน
+                    /*
+                    function getColor(d) {
+                        return  d > 2000000 ? '#800026' :
+                                d > 1500000 ? '#BD0026' :
+                                d > 1000000 ? '#E31A1C' :
+                                d > 750000  ? '#FC4E2A' :
+                                d > 500000  ? '#FD8D3C' :
+                                d > 300000  ? '#FEB24C' :
+                                d > 200000  ? '#FED976' :
+                                            '#FFEDA0';
+                    }
+                    */
+
+                    /* 
+                    // ช่วงเท่ากัน
+                    function getColor(d) {
+                        return  d > 4710000 ? '#800026' :  // 4.71M+
+                                d > 4050000 ? '#BD0026' :  // 4.05M+
+                                d > 3390000 ? '#E31A1C' :  // 3.39M+
+                                d > 2730000 ? '#FC4E2A' :  // 2.73M+
+                                d > 2070000 ? '#FD8D3C' :  // 2.07M+
+                                d > 1410000 ? '#FEB24C' :  // 1.41M+
+                                d > 750000  ? '#FED976' :  // 0.75M+
+                                            '#FFEDA0';   // ต่ำกว่า 0.75M
+                    }
+                    */
+
+                    function getColor(d) {
+                        return d > 4000000 ? '#800026' :  // Top ~10%
+                            d > 2500000 ? '#BD0026' :  // 10–20%
+                            d > 1800000 ? '#E31A1C' :  // 20–30%
+                            d > 1200000 ? '#FC4E2A' :  // 30–40%
+                            d > 800000  ? '#FD8D3C' :  // 40–50%
+                            d > 500000  ? '#FEB24C' :  // 50–60%
+                            d > 300000  ? '#FED976' :  // 60–70%
+                                            '#FFEDA0';   // ต่ำกว่า ~300K
+                    }
+
+
+                    function style(feature) {
+                        return {
+                            fillColor: getColor(feature.properties.p),
+                            weight: 1,
+                            opacity: 1,
+                            color: 'white',
+                            dashArray: '3',
+                            fillOpacity: 0.7
+                        };
+                    }
+
+                    function highlightFeature(e) {
+                        var layer = e.target;
+                        layer.setStyle({
+                            weight: 5,
+                            color: '#666',
+                            dashArray: '',
+                            fillOpacity: 0.7
+                        });
+                        if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                            layer.bringToFront();
+                        }
+                        info.update(layer.feature.properties);
+                    }
+
+                    function resetHighlight(e) {
+                        geojson.resetStyle(e.target);
+                        info.update();
+                    }
+
+                    function zoomToFeature(e) {
+                        var layer = e.target;
+                        var paddingLeft = (window.innerWidth >= 768) ? 280 : 30;
+                        map.fitBounds(layer.getBounds(), {
+                            paddingTopLeft: [paddingLeft, 40],
+                            paddingBottomRight: [30, 30],
+                            maxZoom: 9
+                        });
+                        layer.openPopup();
+                    }
+
+                    function onEachFeature(feature, layer) {
+                        layer.on({
+                            mouseover: highlightFeature,
+                            mouseout: resetHighlight,
+                            click: zoomToFeature
+                        });
+
+
+
+
+
+
+                        // --- STEP 1: สร้าง Array สำหรับเก็บทุกจังหวัด (ใช้ของ global ที่มีอยู่แล้ว)
+                        var features = geojson_data.features;
+
+                        // --- STEP 2: ฟังก์ชันหา Ranking
+                        function getRanking(propertyName, provinceName) {
+                            let sorted = features
+                                .map(f => {
+                                    let p = f.properties.popItem;
+                                    return {
+                                        name: f.properties.name,
+                                        value: p ? p[propertyName] : 0
+                                    };
+                                })
+                                .sort((a, b) => b.value - a.value);
+
+                            // normalize string (ตัด space และทำเป็น lower case)
+                            let target = provinceName.replace(/\s+/g, '').toLowerCase();
+
+                            let idx = sorted.findIndex(f =>
+                                f.name.replace(/\s+/g, '').toLowerCase() === target
+                            );
+
+                            return idx >= 0 ? idx + 1 : "-";
+                        }
+
+
+                        // ฟังก์ชันสำหรับแปลงชื่อ: เจอตัวใหญ่ → เติม space ข้างหน้า
+                        function addSpaceBeforeUppercase(str) {
+                            return str.replace(/([a-z])([A-Z])/g, '$1 $2');
+                        }
+
+                        // --- STEP 3: popup content
+                        var p = feature.properties.popItem;
+                        var provinceName = feature.properties.name;
+
+                        var rawName = feature.properties.name;
+                        var provinceName = addSpaceBeforeUppercase(rawName);
+
+
+
+                        var rankTotal  = getRanking("ประชากรรวม (Total Population)", provinceName);
+                        var rankMale   = getRanking("ประชากรชาย (Male population)", provinceName);
+                        var rankFemale = getRanking("ประชากรหญิง (Female population)", provinceName);
+
+                       var popupContent = `
+                            <div id="popup-content" class="popup-card">
+                                <h4 style="color: #2e2d2aff;">${provinceName}</h4>
+                                <table>
+                                    <tr>
+                                        <td>
+                                            <img src="images/3_peple.png" alt="Total" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                            Total
+                                        </td>
+                                        <td style="color: #0F4267;">
+                                            ${p ? p["ประชากรรวม (Total Population)"].toLocaleString() : 0}
+                                            <small style="color: #1e1e1eff;"> (Rank: ${rankTotal})</small>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <img src="images/1_1_man.png" alt="Male" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                            Male
+                                        </td>
+                                        <td style="color: #78A3D4;">
+                                            ${p ? p["ประชากรชาย (Male population)"].toLocaleString() : 0}
+                                            <small style="color: #1e1e1eff;"> (Rank: ${rankMale})</small>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td>
+                                            <img src="images/2_1_woman.png" alt="Female" style="width:20px; vertical-align:middle; margin-right:5px;">
+                                            Female
+                                        </td>
+                                        <td style="color: #FB6F92;">
+                                            ${p ? p["ประชากรหญิง (Female population)"].toLocaleString() : 0}
+                                            <small style="color: #1e1e1eff;"> (Rank: ${rankFemale})</small>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td><strong>Density:</strong></td>
+                                        <td>${p ? p["ความหนาแน่นต่อ ตร.กม. (Density per sq.km.)"] : 0} per km²</td>
+                                    </tr>
+                                </table>
+                            </div>
+                        `;
+
+                        // Task 2: JS map popup configuration options for boundary containment and smooth pan
+                        layer.bindPopup(popupContent, {
+                            maxWidth: 320,
+                            minWidth: 220,
+                            maxHeight: 380,
+                            autoPan: true,
+                            autoPanPadding: [25, 25],
+                            autoPanPaddingTopLeft: [30, 30],
+                            autoPanPaddingBottomRight: [30, 30],
+                            keepInView: true,
+                            closeButton: true
+                        });
+                    }
+
+
+
+                    var sourceInfo = L.control({position: 'bottomleft'});
+
+                    sourceInfo.onAdd = function (map) {
+                        var div = L.DomUtil.create('div', 'info');
+                        div.innerHTML = '<small>Source: Department of Provincial Administration (DOPA), 2023</small>';
+                        div.style.marginLeft = "20px";   // ✅ เพิ่มระยะห่างจากซ้าย
+                        div.style.backgroundColor = "#eaeaea66";
+                        div.style.fontSize = "12px";
+                        return div;
+                    };
+                    sourceInfo.addTo(map);
+
+
+
+
+
+
+
+                    
+                    var geojson = L.geoJson(geojson_data, {
+                        style: style,
+                        onEachFeature: onEachFeature
+                    }).addTo(map);
+
+                    // legend
+                    var legend = L.control({position: 'bottomright'});
+                    legend.onAdd = function (map) {
+                        var div = L.DomUtil.create('div', 'info legend'),
+                            grades = [0, 300000, 500000, 800000, 1200000, 1800000, 2500000, 4000000],
+                            labels = [],
+                            from, to;
+
+                        for (var i = 0; i < grades.length; i++) {
+                            from = grades[i];
+                            to = grades[i + 1];
+                            labels.push(
+                                '<i style="background:' + getColor(from + 1) + '"></i> ' +
+                                from.toLocaleString() + (to ? '&ndash;' + to.toLocaleString() : '+')
+                            );
+                        }
+
+                        div.innerHTML = labels.join('<br>');
+                        return div;
+                    };
+                    legend.addTo(map);
+
+                    // Mobile KPI Toggle Button Handler
+                    const kpiToggleBtn = document.getElementById('kpi-toggle-btn');
+                    const kpiCard = document.getElementById('kpi-card');
+                    if (kpiToggleBtn && kpiCard) {
+                        kpiToggleBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            const isActive = kpiCard.classList.toggle('active');
+                            const textSpan = kpiToggleBtn.querySelector('.kpi-toggle-text');
+                            if (textSpan) {
+                                textSpan.innerText = isActive ? 'Close' : 'Statistics';
+                            }
+                        });
+                    }
+
+
+
+                }); // end getJSON geojson
+
+            }); // end getJSON population
+
+        });
+
+
+        
+    </script>
+</html>
