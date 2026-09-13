@@ -4,72 +4,172 @@
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Geolocation</title>
+        <title>Thailand Population Map Dashboard</title>
         <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
         <style>
-            #mapid {
-                height: 100vh;  /* ความสูงเต็มหน้าจอ  100vh */
-                width: 100vw;   /* ความกว้างเต็มหน้าจอ  100vw*/
-                margin: 0;
-                padding: 0;
+            /* Base reset & full viewport layout */
+            *, *::before, *::after {
+                box-sizing: border-box;
             }
-            body, html {
+
+            html, body {
                 height: 100%;
                 width: 100%;
                 margin: 0;
                 padding: 0;
+                overflow: hidden;
+                font-family: 'Segoe UI', Arial, Tahoma, sans-serif;
+                background-color: #f4f6f8;
             }
 
+            /* Task 2: Responsive Dashboard & Map Container */
+            #dashboard-wrapper {
+                position: relative;
+                width: 100%;
+                height: 100vh;
+                height: 100dvh; /* Mobile dynamic viewport height */
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+
+            #map-container {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                flex: 1;
+                overflow: hidden;
+            }
+
+            #mapid {
+                width: 100%;
+                height: 100%;
+                min-height: 100%;
+                margin: 0;
+                padding: 0;
+                z-index: 1;
+            }
+
+            /* Responsive Map Title */
+            #map-title {
+                position: absolute;
+                top: 18px;
+                left: 24px;
+                z-index: 1000;
+                pointer-events: none;
+                line-height: 1.15;
+                font-family: 'Segoe UI', Tahoma, sans-serif;
+            }
+
+            #map-title .title-highlight {
+                color: #CE6857;
+                font-size: clamp(20px, 3.5vw, 36px);
+                font-weight: 800;
+                text-shadow: 2px 2px 6px rgba(255, 255, 255, 0.85);
+            }
+
+            #map-title .title-from {
+                font-size: clamp(14px, 2.2vw, 24px);
+                color: #523E27;
+                font-weight: 600;
+                margin-left: 6px;
+                text-shadow: 1px 1px 4px rgba(255, 255, 255, 0.8);
+            }
+
+            #map-title .title-sub {
+                color: #523E27;
+                font-size: clamp(15px, 2.6vw, 28px);
+                font-weight: 700;
+                text-shadow: 2px 2px 6px rgba(255, 255, 255, 0.85);
+                white-space: nowrap;
+            }
+
+            #map-title .title-year {
+                font-size: clamp(18px, 3.2vw, 35px);
+                color: #A87008;
+            }
+
+            /* Info Box & Legend Controls */
             .info { 
-            padding: 6px 8px; 
-            font: 14px/16px Arial, Helvetica, sans-serif; 
-            background: white; 
-            background: rgba(255,255,255,0.8); 
-            box-shadow: 0 0 15px rgba(0,0,0,0.2); 
-            border-radius: 5px; 
+                padding: 8px 12px; 
+                font: 13px/16px 'Segoe UI', Arial, Helvetica, sans-serif; 
+                background: rgba(255, 255, 255, 0.92); 
+                box-shadow: 0 4px 12px rgba(0,0,0,0.18); 
+                border-radius: 8px; 
+                backdrop-filter: blur(4px);
             } 
 
-            .info h4 { margin: 0 0 5px; color: #777; }
+            .info h4 { 
+                margin: 0 0 5px; 
+                color: #444; 
+                font-size: 14px;
+                font-weight: 700;
+            }
 
             .legend { 
-            text-align: left; 
-            line-height: 18px; 
-            color: #555; 
+                text-align: left; 
+                line-height: 20px; 
+                color: #444; 
+                max-height: 48vh;
+                overflow-y: auto;
             } 
 
             .legend i { 
-            width: 18px; 
-            height: 18px; 
-            float: left; 
-            margin-right:8px; 
-            opacity: 0.7; 
+                width: 18px; 
+                height: 18px; 
+                float: left; 
+                margin-right: 8px; 
+                opacity: 0.85; 
+                border-radius: 3px;
             }
 
-            
-            /* style สำหรับ popup */
+            /* Task 2: Responsive Map Popup & Viewport Boundary Constraints */
+            .leaflet-popup {
+                margin-bottom: 24px;
+            }
+
             .leaflet-popup-content-wrapper {
-                border-radius: 10px;
-                background: #f9f9f9;
-                box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
-                padding: 10px;
+                border-radius: 12px;
+                background: #ffffff;
+                box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+                padding: 10px 14px;
+                max-width: 85vw !important;  /* Popup never exceeds 85% of viewport width */
+                max-height: 70vh !important; /* Popup never exceeds 70% of viewport height */
+                box-sizing: border-box;
             }
 
             .leaflet-popup-content {
-                margin: 0;
+                margin: 6px 4px !important;
+                line-height: 1.4;
+                max-width: 100% !important;
+                max-height: calc(70vh - 40px) !important;
+                overflow-y: auto !important;  /* Smooth scrolling if popup content is tall */
+                overflow-x: hidden;
+                word-break: break-word;       /* Prevent overflow from long names/text */
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .leaflet-popup-content::-webkit-scrollbar {
+                width: 5px;
+            }
+            .leaflet-popup-content::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 4px;
             }
 
             .popup-card {
-                font-family: "Arial", sans-serif;
-                font-size: 14px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                font-size: 13.5px;
                 color: #333;
+                min-width: 220px;
             }
 
             .popup-card h4 {
-                margin: 0 0 10px;
-                padding-bottom: 5px;
+                margin: 0 0 8px;
+                padding-bottom: 6px;
                 font-size: 16px;
                 font-weight: bold;
-                border-bottom: 1px solid #ddd;
+                border-bottom: 1px solid #e0e0e0;
                 color: #2c3e50;
             }
 
@@ -79,160 +179,288 @@
             }
 
             .popup-card table td {
-                padding: 4px 6px;
-                vertical-align: top;
+                padding: 5px 6px;
+                vertical-align: middle;
             }
 
             .popup-card table td:first-child {
-                font-weight: bold;
+                font-weight: 600;
                 color: #555;
+                white-space: nowrap;
             }
 
-
-            /* KPI */
-            #side-card {
-                position: absolute;
-                top: 80px;        /* ระยะจากด้านบน */
-                left: 20px;       /* ✅ ย้ายมาอยู่ด้านซ้าย */
-                width: 300px;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-                padding: 16px;
-                font-family: Arial, sans-serif;
-                z-index: 9999;    /* ให้อยู่เหนือ map */
-            }
-
-            #side-card h3 {
-                margin-top: 0;
-                color: #2e2d2a;
-            }
-
-            #side-card p {
-                margin: 4px 0;
-            }
-
-            /* จัดเรียงแนวตั้ง */
+            /* KPI Cards Overlay Panel */
             #kpi-card {
                 display: flex;
                 flex-direction: column;
                 gap: 10px;
                 position: absolute;
-                top: 130px;
+                top: 110px;
                 left: 20px;
-                z-index: 9999;
+                z-index: 1000;
+                max-height: calc(100vh - 140px);
+                max-height: calc(100dvh - 140px);
+                overflow-y: auto;
+                padding-right: 4px;
+                transition: transform 0.3s ease, opacity 0.3s ease;
+            }
+
+            #kpi-card::-webkit-scrollbar {
+                width: 4px;
+            }
+            #kpi-card::-webkit-scrollbar-thumb {
+                background: rgba(0,0,0,0.2);
+                border-radius: 4px;
             }
 
             .side-card {
-                width: 200px;
-                max-width: 50vw;
-                padding: 16px;
+                background: rgba(255, 255, 255, 0.92);
                 border-radius: 12px;
-                font-family: Arial, sans-serif;
-                box-shadow: 0 4px 8px rgba(0,0,0,0.5);
-                backdrop-filter: blur(5px);
-                line-height: 0.5; /* ลดระยะห่างบรรทัด */
-            }
-
-            .card-bg-1 { background-color: rgba(255,255,255,0.7); }
-            .card-bg-2 { background-color: rgba(255,255,255,0.5); }
-
-            /* เว้นระยะ dropdown กับข้อความด้านล่าง */
-            #region-select {
-                width: 100%;          /* ให้เต็ม card */
-                padding: 6px 8px;
-                margin-top: 5px;      /* เว้นระยะจาก label ข้างบน */
-                margin-bottom: 2px;  /* เว้นระยะจากข้อความด้านล่าง */
-                border-radius: 6px;
-                border: 1px solid #ccc;
-                font-size: 14px;
-            }
-
-            /* เว้นระยะ label จากหัวข้อ */
-            .side-card label {
-                font-weight: bold;
-                display: block;
-                margin-bottom: 4px;
-            }
-
-            .side-card {
-                background: rgba(249, 249, 249, 0.8); /* พื้นหลังคล้าย popup */
-                border-radius: 10px;
-                box-shadow: 0px 4px 10px rgba(0,0,0,0.3); /* เงา popup */
-                padding: 12px 16px;
-                font-family: Arial, sans-serif;
-                line-height: 1.3; /* ลดระยะบรรทัดให้เหมือน popup */
+                box-shadow: 0 4px 14px rgba(0,0,0,0.18);
+                backdrop-filter: blur(6px);
+                padding: 12px 14px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+                line-height: 1.35;
                 color: #333;
-                min-width: 250px;
-                max-width: 320px;
+                width: 260px;
+                max-width: 85vw;
             }
 
-            /* Header ของ card */
-            .card-header {
-                font-weight: bold;
-                font-size: 16px;
-                margin-bottom: 6px;
+            .side-card .card-header {
+                font-weight: 700;
+                font-size: 15px;
+                margin-bottom: 8px;
+                color: #2e2d2a;
             }
 
-            /* สีเหมือน popup */
-            .card-body p strong {
+            .side-card .card-body p {
+                margin: 6px 0;
+                font-size: 14px;
+                display: flex;
+                align-items: center;
+            }
+
+            .side-card .card-body p strong {
                 display: inline-block;
                 min-width: 50px;
             }
-            /*
-            .card-body p.total { color: #eb801bff; }
-            .card-body p.male  { color: #78A3D4; }
-            .card-body p.female{ color: #FB6F92; }
-            /*
 
-            /* ตาราง top 5 */
+            #region-select {
+                width: 100%;
+                padding: 6px 8px;
+                margin-top: 5px;
+                margin-bottom: 6px;
+                border-radius: 6px;
+                border: 1px solid #ccc;
+                font-size: 13.5px;
+                background-color: #fff;
+            }
+
+            .side-card label {
+                font-weight: 600;
+                display: block;
+                font-size: 13px;
+                margin-bottom: 3px;
+            }
+
+            /* Top 5 Table */
             #province-table {
                 border-collapse: collapse;
                 width: 100%;
-                font-size: 14px;
+                font-size: 13px;
             }
+
             #province-table th, #province-table td {
-                border: 1px solid #ddd;
-                padding: 6px;
+                border: 1px solid #e2e8f0;
+                padding: 5px 6px;
             }
+
             #province-table th {
-                background: rgba(239, 239, 239, 0.9);
-                font-weight: bold;
+                background: rgba(240, 243, 246, 0.95);
+                font-weight: 700;
+                text-align: left;
             }
 
+            /* KPI Toggle Button for Mobile */
+            .kpi-toggle-btn {
+                display: none;
+                position: absolute;
+                top: 18px;
+                right: 18px;
+                z-index: 1002;
+                background: #800026;
+                color: #fff;
+                border: none;
+                border-radius: 20px;
+                padding: 7px 14px;
+                font-size: 13px;
+                font-weight: 600;
+                box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+                cursor: pointer;
+                align-items: center;
+                gap: 6px;
+            }
 
+            .kpi-toggle-btn:active {
+                transform: scale(0.97);
+            }
 
+            /* Search Box */
+            #search-container {
+                position: absolute;
+                bottom: 25px;
+                left: 50%;
+                transform: translateX(-50%);
+                z-index: 1000;
+                width: 90%;
+                max-width: 300px;
+            }
 
+            #search-error {
+                color: #d90429;
+                font-size: 12px;
+                font-weight: 600;
+                text-align: center;
+                margin-bottom: 4px;
+                text-shadow: 0 0 4px #ffffff;
+            }
+
+            .search-bar {
+                position: relative;
+                display: flex;
+                align-items: center;
+                background: #814256;
+                border-radius: 10px;
+                padding: 4px 6px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+            }
+
+            .search-icon {
+                width: 18px;
+                height: 18px;
+                fill: #ffffff;
+                margin-left: 4px;
+                flex-shrink: 0;
+            }
+
+            #province-search {
+                flex: 1;
+                padding: 7px 10px;
+                margin-left: 6px;
+                border: none;
+                border-radius: 6px;
+                outline: none;
+                font-size: 13.5px;
+            }
+
+            #autocomplete-list {
+                position: absolute;
+                bottom: 42px;
+                left: 0;
+                right: 0;
+                background: #ffffff;
+                border: 1px solid #ddd;
+                max-height: 160px;
+                overflow-y: auto;
+                display: none;
+                border-radius: 8px;
+                box-shadow: 0 -4px 14px rgba(0,0,0,0.18);
+                z-index: 1001;
+            }
+
+            #autocomplete-list div {
+                padding: 7px 12px;
+                cursor: pointer;
+                border-bottom: 1px solid #f0f0f0;
+                font-size: 13.5px;
+            }
+
+            #autocomplete-list div:hover {
+                background: #f4f6f8;
+            }
+
+            /* Mobile & Tablet Responsive Adjustments */
+            @media (max-width: 768px) {
+                .kpi-toggle-btn {
+                    display: inline-flex;
+                }
+
+                #kpi-card {
+                    top: 65px;
+                    left: 12px;
+                    right: 12px;
+                    width: auto;
+                    max-width: calc(100vw - 24px);
+                    max-height: 55vh;
+                    display: none; /* Collapsed by default on mobile, toggled via button */
+                }
+
+                #kpi-card.active {
+                    display: flex;
+                }
+
+                .side-card {
+                    width: 100%;
+                    max-width: 100%;
+                }
+
+                #search-container {
+                    bottom: 20px;
+                    max-width: 85vw;
+                }
+
+                .legend {
+                    max-height: 35vh;
+                    font-size: 11px;
+                }
+
+                .leaflet-control-attribution {
+                    font-size: 9px;
+                }
+            }
         </style>
     </head>
 
     <body>
-
-        <div class="container">
-            <div class="row col-12" style=" display: flex; justify-content: center; align-items: center;">
+        <div id="dashboard-wrapper">
+            <!-- Map Container -->
+            <div id="map-container">
                 
-                <!-- KPI card -->
-                <div id="kpi-card">
+                <!-- Map Title -->
+                <div id="map-title">
+                    <span class="title-highlight">Population</span>
+                    <span class="title-from">from</span><br>
+                    <span class="title-sub">
+                        Registration in <span class="title-year">2023</span>
+                    </span>
+                </div>
 
+                <!-- KPI Mobile Toggle Button -->
+                <button id="kpi-toggle-btn" class="kpi-toggle-btn" type="button" aria-label="Toggle Statistics Panel">
+                    <span>📊</span>
+                    <span class="kpi-toggle-text">Statistics</span>
+                </button>
+
+                <!-- KPI Cards Panel -->
+                <div id="kpi-card">
                     <!-- Total Thailand -->
                     <div class="side-card" style="border: 3px solid #800026;">
                         <div class="card-header">Thailand Population</div>
                         <div class="card-body">
                             <p class="total">
                                 <img src="./images/3_peple.png" alt="Total" style="width:20px; vertical-align:middle; margin-right:5px;">
-                                <span id="total-pop"></span>
+                                <span id="total-pop">-</span>
                             </p>
                             <p class="male">
                                 <img src="./images/1_1_man.png" alt="Male" style="width:25px; vertical-align:middle; margin-right:5px;">
-                                <span id="male-pop"></span>
+                                <span id="male-pop">-</span>
                             </p>
                             <p class="female">
                                 <img src="./images/2_1_woman.png" alt="Female" style="width:25px; vertical-align:middle; margin-right:5px;">
-                                <span id="female-pop"></span>
+                                <span id="female-pop">-</span>
                             </p>
                         </div>
                     </div>
-
 
                     <!-- Population by Region -->
                     <div class="side-card" style="border: 3px solid #E31A1C;">
@@ -247,24 +475,21 @@
                                 <option value="ภาคตะวันออกเฉียงเหนือ">Northeastern Region</option>
                                 <option value="ภาคใต้">Southern Region</option>
                             </select>
-
                             <p class="total">
                                 <img src="images/3_peple.png" alt="Total" style="width:20px; vertical-align:middle; margin-right:5px;">
-                                <span id="region-total"></span>
+                                <span id="region-total">-</span>
                             </p>
                             <p class="male">
                                 <img src="images/1_1_man.png" alt="Male" style="width:20px; vertical-align:middle; margin-right:5px;">
-                                <span id="region-male"></span>
+                                <span id="region-male">-</span>
                             </p>
                             <p class="female">
                                 <img src="images/2_1_woman.png" alt="Female" style="width:20px; vertical-align:middle; margin-right:5px;">
-                                <span id="region-female"></span>
+                                <span id="region-female">-</span>
                             </p>
                         </div>
                     </div>
 
-
-                     <!-- Top 5 Provinces -->
                     <!-- Top 5 Provinces -->
                     <div class="side-card" style="border: 3px solid #FD8D3C;">
                         <div class="card-header">Top 5 Provinces</div>
@@ -277,154 +502,30 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- แถวจะถูกเติมด้วย JS -->
+                                    <!-- Rows populated by JS -->
                                 </tbody>
                             </table>
                         </div>
                     </div>
-
-
                 </div>
 
-
-               <!-- Search Box กลางล่าง -->
-                <div id="search-container" style="
-                    position: absolute; 
-                    bottom: 30px; left: 50%; 
-                    transform: translateX(-50%);
-                    z-index: 1000; 
-                    min-width: 260px;
-                ">
-
-                    <!-- Error message -->
-                    <div id="search-error" style="color:red; 
-                            font-size:12px; 
-                            margin-top:4px;
-                            margin-bottom:4px;
-                    ">
-                    </div>
-
-                    <!-- กล่อง input + icon -->
-                    <div style="position: relative; 
-                            display: flex; 
-                            align-items: center; 
-                            background: #814256; 
-                            border-radius: 8px; 
-                            padding: 4px;">
-                        <!-- ไอคอน -->
-                        <svg viewBox="0 0 20 20" aria-hidden="true" style="
-                            position: relative; 
-                            width: 16px; 
-                            height: 16px; 
-                            fill: #fff;
-                            margin-left: 4px;
-                        ">
+                <!-- Search Box -->
+                <div id="search-container">
+                    <div id="search-error"></div>
+                    <div class="search-bar">
+                        <svg viewBox="0 0 20 20" aria-hidden="true" class="search-icon">
                             <path d="M16.72 17.78a.75.75 0 1 0 1.06-1.06l-1.06 1.06ZM9 14.5A5.5 5.5 0 0 1 3.5 9H2a7 7 0 0 0 7 7v-1.5ZM3.5 9A5.5 5.5 0 0 1 9 3.5V2a7 7 0 0 0-7 7h1.5ZM9 3.5A5.5 5.5 0 0 1 14.5 9H16a7 7 0 0 0-7-7v1.5Zm3.89 10.45 3.83 3.83 1.06-1.06-3.83-3.83-1.06 1.06ZM14.5 9a5.48 5.48 0 0 1-1.61 3.89l1.06 1.06A6.98 6.98 0 0 0 16 9h-1.5Zm-1.61 3.89A5.48 5.48 0 0 1 9 14.5V16a6.98 6.98 0 0 0 4.95-2.05l-1.06-1.06Z"></path>
                         </svg>
-
-                        <!-- Input -->
-                        <input type="text" id="province-search" placeholder="ค้นหาจังหวัด..." style="
-                            flex: 1;
-                            padding: 6px 8px 6px 8px;
-                            margin-left: 4px;
-                            border: none;
-                            border-radius: 0 8px 8px 0;
-                            outline: none;
-                        ">
+                        <input type="text" id="province-search" placeholder="ค้นหาจังหวัด (Search province)..." autocomplete="off">
                     </div>
-
-                    <!-- Autocomplete list -->
-                    <div id="autocomplete-list" style="
-                        position: absolute;
-                        bottom: 36px;
-                        left: 50%;
-                        transform: translateX(-50%);
-                        background: #fff;
-                        border: 1px solid #ccc;
-                        max-height: 150px;
-                        overflow-y: auto;
-                        width: 230px;
-                        display: none;
-                        border-radius: 8px 8px 0 0;
-                        z-index: 1001;
-                    "></div>
-
+                    <div id="autocomplete-list"></div>
                 </div>
 
+                <!-- Leaflet Map Container -->
+                <div id="mapid"></div>
 
-                
-
-
-                    <!-- แมพ -->
-                <div class="col-md-12 pt-3 col-12">
-                    <div class="card md-4">
-                        <div class="card-body">
-
-                            <!-- แมพ -->
-                            <div id="map-container" style="position: relative;">
-                                
-                                <!-- ชื่อแมพ -->
-                                <div id="map-title" style="
-                                position: absolute;
-                                top: 20px;
-                                left: 50px;
-                                z-index: 1000;
-                                font-weight: bold;
-                                font-size: 36px;
-                                text-align: left;
-                                line-height: 1.2;
-                                font-family: 'Segoe UI', Tahoma, sans-serif;
-                            ">
-                                <!-- Population -->
-                                <span style="
-                                    color: #CE6857; /* 🔴 แดงเข้ม */
-                                    text-shadow: 2px 2px 5px rgba(255, 255, 255, 0.6); /* เงาดำชัด */
-                                ">
-                                    Population
-                                </span>
-
-                                <!-- from -->
-                                <span style="
-                                    font-size: 24px;
-                                    color: #523E27; /* ⚫ เทาเข้ม */
-                                    font-weight: 600;
-                                    margin-left: 6px;
-                                    text-shadow: 1px 1px 3px rgba(0,0,0,0.5);
-                                "> 
-                                    from
-                                </span><br>
-
-                                <!-- Registration in 2023 -->
-                               <span style="
-                                    color: #523E27; /* 💙 น้ำเงินกรมท่า */
-                                    font-size: 28px;
-                                    font-weight: 700;
-                                    text-shadow: 2px 2px 6px rgba(255, 255, 255, 0.7);
-                                    white-space: nowrap;
-                                ">
-                                    Registration in <span style="font-size: 35px; color: #A87008;">2023</span>
-                                </span>
-
-                            </div>
-
-
-
-                                <!-- ตัวแมพ -->
-                                <div id="mapid"></div>
-
-                            </div>
-
-                        </div>
-                    </div>
-                </div>
-                
             </div>
         </div>
-
-        
-
-
-
     </body>
 
     <!-- Resources -->
@@ -458,8 +559,36 @@
                         feature.properties.popItem = popItem; // เก็บ object ไว้ใช้ใน popup
                     });
 
-                    // สร้าง map
-                    var map = L.map('mapid').setView([13, 101.5], 5);
+                    // สร้าง map (Responsive configuration with smooth zoom)
+                    var map = L.map('mapid', {
+                        zoomSnap: 0.5,
+                        zoomDelta: 0.5
+                    }).setView([13, 101.5], 5.5);
+
+                    // Task 2: Responsive Map Container Resize Handler (map.invalidateSize)
+                    function handleMapResize() {
+                        if (map) {
+                            map.invalidateSize();
+                        }
+                    }
+
+                    // Window resize and device orientation change listeners
+                    window.addEventListener('resize', handleMapResize);
+                    window.addEventListener('orientationchange', handleMapResize);
+
+                    // ResizeObserver to detect fluid container size adjustments
+                    if (window.ResizeObserver) {
+                        const mapEl = document.getElementById('mapid');
+                        if (mapEl) {
+                            const resizeObserver = new ResizeObserver(() => {
+                                handleMapResize();
+                            });
+                            resizeObserver.observe(mapEl);
+                        }
+                    }
+
+                    // Initial layout recalculation after paint
+                    setTimeout(handleMapResize, 250);
 
                     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                         attribution: '&copy; <a href="http://openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -540,7 +669,12 @@
                                 if (feature) {
                                     let layer = geojson.getLayers().find(l => l.feature.properties.name === feature.properties.name);
                                     if (layer) {
-                                        map.fitBounds(layer.getBounds());
+                                        var paddingLeft = (window.innerWidth >= 768) ? 280 : 30;
+                                        map.fitBounds(layer.getBounds(), {
+                                            paddingTopLeft: [paddingLeft, 40],
+                                            paddingBottomRight: [30, 30],
+                                            maxZoom: 9
+                                        });
                                         layer.openPopup();
                                     }
                                 } else {
@@ -757,7 +891,14 @@
                     }
 
                     function zoomToFeature(e) {
-                        map.fitBounds(e.target.getBounds());
+                        var layer = e.target;
+                        var paddingLeft = (window.innerWidth >= 768) ? 280 : 30;
+                        map.fitBounds(layer.getBounds(), {
+                            paddingTopLeft: [paddingLeft, 40],
+                            paddingBottomRight: [30, 30],
+                            maxZoom: 9
+                        });
+                        layer.openPopup();
                     }
 
                     function onEachFeature(feature, layer) {
@@ -858,7 +999,18 @@
                             </div>
                         `;
 
-                        layer.bindPopup(popupContent);
+                        // Task 2: JS map popup configuration options for boundary containment and smooth pan
+                        layer.bindPopup(popupContent, {
+                            maxWidth: 320,
+                            minWidth: 220,
+                            maxHeight: 380,
+                            autoPan: true,
+                            autoPanPadding: [25, 25],
+                            autoPanPaddingTopLeft: [30, 30],
+                            autoPanPaddingBottomRight: [30, 30],
+                            keepInView: true,
+                            closeButton: true
+                        });
                     }
 
 
@@ -908,6 +1060,20 @@
                         return div;
                     };
                     legend.addTo(map);
+
+                    // Mobile KPI Toggle Button Handler
+                    const kpiToggleBtn = document.getElementById('kpi-toggle-btn');
+                    const kpiCard = document.getElementById('kpi-card');
+                    if (kpiToggleBtn && kpiCard) {
+                        kpiToggleBtn.addEventListener('click', function(e) {
+                            e.stopPropagation();
+                            const isActive = kpiCard.classList.toggle('active');
+                            const textSpan = kpiToggleBtn.querySelector('.kpi-toggle-text');
+                            if (textSpan) {
+                                textSpan.innerText = isActive ? 'Close' : 'Statistics';
+                            }
+                        });
+                    }
 
 
 
